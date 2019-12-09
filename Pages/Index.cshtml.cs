@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using CoHO.Data;
 using CoHO.Models;
 using Microsoft.EntityFrameworkCore;
+using SignalRChat.Hubs;
 
 namespace CoHO.Pages
 {
@@ -80,38 +81,6 @@ namespace CoHO.Pages
 
         }
 
-        public async void HandleClockRequests(Volunteer ourVolunteer)
-        {
-            VolunteerActivity LastActivity = GetLastActivity(ourVolunteer);
-
-            // If the user clicks the button before they hit the 2 hour mark
-            if (LastActivity != null)
-            {
-                if (LastActivity.ClockedIn)
-                {
-                    if (DateTime.Compare(LastActivity.EndTime, DateTime.Now) > 0)
-                    {
-                        DoClockout(ourVolunteer, false);
-
-                    }
-                    else
-                    {
-                        DoClockout(ourVolunteer, true);
-                    }
-                }
-                else
-                {
-                    //Check if the last thing is clocked in
-                    Clockin(ourVolunteer);
-                }
-            }
-            else
-            {
-                Clockin(ourVolunteer);
-            }
-
-        }
-
         public async void Clockin(Volunteer ourVolunteer)
         {
 
@@ -132,30 +101,10 @@ namespace CoHO.Pages
 
 
         // more details see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostClockInClockOut()
-        {
-
-
-            //Console.WriteLine("Our initiative is ");
-            //Console.WriteLine(Initiative.Description);
-            Console.Write(Volunteers.UserName);
-
-
-            Volunteer ourVolunteer = (from volunteer in _context.Volunteer where volunteer.Email.ToLower() == Volunteers.Email.ToLower() select volunteer).ToList()[0];
-            Console.Write("Our Volunteer is....");
-            Console.Write(ourVolunteer.Email);
-
-
-
-            HandleClockRequests(ourVolunteer);
-            return RedirectToPage("./Index");
-        }
-
+ 
         //[HttpPost]
         public async Task<IActionResult> OnPostClockOut()
         {
-            Console.WriteLine("Clocking in");
-            //Move over the clock in code here
             Volunteer ourVolunteer = (from volunteer in _context.Volunteer where volunteer.Email.ToLower() == Volunteers.Email.ToLower() select volunteer).ToList()[0];
             VolunteerActivity LastActivity = GetLastActivity(ourVolunteer);
 
@@ -172,10 +121,7 @@ namespace CoHO.Pages
                         DoClockout(ourVolunteer, true);
                     }
                 }
-                else
-                {
-                    Clockin(ourVolunteer);
-                }
+
             }
 
 
@@ -187,10 +133,23 @@ namespace CoHO.Pages
         }
         public async Task<IActionResult> OnPostClockIn()
         {
-            Console.WriteLine("Clocking out");
             Volunteer ourVolunteer = (from volunteer in _context.Volunteer where volunteer.Email.ToLower() == Volunteers.Email.ToLower() select volunteer).ToList()[0];
             VolunteerActivity LastActivity = GetLastActivity(ourVolunteer);
+            ChatHub hub = new ChatHub();
+            await hub.SendMessage("This is a test");
 
+
+            if (LastActivity.ClockedIn){
+                //Fixes strange condition where user tries to clock in before clocking out.
+                if (DateTime.Compare(LastActivity.EndTime, DateTime.Now) > 0)
+                {
+                    DoClockout(ourVolunteer, false);
+                }
+                else
+                {
+                    DoClockout(ourVolunteer, true);
+                }
+            }
             Clockin(ourVolunteer);
             System.Threading.Thread.Sleep(500);
 
